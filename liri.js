@@ -1,17 +1,60 @@
 require("dotenv").config();
+var inquirer = require("inquirer");
 var fs = require("fs");
 var moment = require('moment');
 var request = require("request");
 var keys = require("./keys.js");
 var Spotify = require("node-spotify-api");
 var spotify = new Spotify(keys.spotify);
+var username;
+var action;
+var item;
+inquirer
+    .prompt({
+        type: "input",
+        message: "What is your name?",
+        name: "username"
+    },)
+    .then(function(response){
+        username = response.username;
+        actionPrompt();
+    })
 
 
-var action = process.argv[2];
-var item = process.argv[3];
-logIt(action, item);
-heyLiri(action);
+function actionPrompt() {
+    inquirer
+        .prompt([
+            {
+                message: "What would you like to do?",
+                type: "list",
+                choices: ["Search for a Concert", "Search for a Song", "Search for a movie", "Search for something","Nothing"],
+                name: "action"
+            },
+        ])
+        .then(function (inquirerResponse) {
+            action = inquirerResponse.action;
+            
+            switch (action) {
+                case "Search for a Concert":
+                    promptForQuery("concert");
+                    break;
+                case "Search for a Song":
+                    promptForQuery("song");
+                    break;
+                case "Search for a movie":
+                    promptForQuery("movie");
+                    break;
+                case "Search for something":
+                    heyLiri("do-what-it-says");
+                    break;
+                case "Nothing":
+                    console.log("Thank you for using Liri! " + username);
+                    break;
+            }
+            
 
+        });
+}
 function concert(){
     var artist = item;
     request("https://rest.bandsintown.com/artists/" + artist + "/events?app_id=codingbootcamp", function(error, response, body) {
@@ -19,19 +62,18 @@ function concert(){
         // console.log(JSON.parse(body, null, 2));
         if (!error && response.statusCode === 200) {
       
-            JSON.parse(body).forEach( (event) =>{
+            JSON.parse(body).forEach( function(event){
 
-                console.log("******************")
-                console.log("Venue: " + event.venue.name)
-                console.log("City: " + event.venue.city)
+                console.log("******************");
+                console.log("Venue: " + event.venue.name);
+                console.log("City: " + event.venue.city);
                 // use momemnt to format date
-                var date = moment(event.datetime)
-                console.log("When: " + date.format("MM/DD/YYYY"))
-
+                var date = moment(event.datetime);
+                console.log("When: " + date.format("MM/DD/YYYY"));
             });
+            actionPrompt();
         };
-             
-    });
+    });  
 };
 function spotifySong(item){
     var song = item;
@@ -43,15 +85,17 @@ function spotifySong(item){
     //  console.log(data)
     var playList = data.tracks.items;
 
-    playList.forEach(elements => {
-        console.log('----------------********************----------------')
+    playList.forEach(function(elements) {
+        console.log('*******************')
         console.log(elements.artists[0].name) 
         console.log(elements.name)
         console.log(elements.href)
         console.log(elements.album.name)
-        console.log('----------------********************----------------')
     })
-});
+    console.log('*******************')
+    console.log("I found "+playList.length+ " songs.")
+    actionPrompt();
+    });
 };
 function movie(item){
     var movie = item;
@@ -71,10 +115,11 @@ function movie(item){
           console.log("Plot: " + JSON.parse(body).Plot);
           console.log("Actors: " + JSON.parse(body).Actors);
           console.log("***************************************")
+         
           
         }
-        // display what ever david said
-      
+        
+        actionPrompt();
       });
 };
 function dowhat(){
@@ -85,19 +130,18 @@ function dowhat(){
         var data = data.split(",");
         item = data[1];
         heyLiri(data[0]);
-        
+         
     })
 };
 function heyLiri(action){
-
     switch(action){
-        case "concert-this":
+        case "concert":
         concert(item);
         break;
-        case "spotify-this-song":
+        case "song":
         spotifySong(item);
         break;
-        case "movie-this":
+        case "movie":
         if (!item){
             console.log("*******You did not pick a movie.********")
             item = "Mr. Nobody"
@@ -108,14 +152,29 @@ function heyLiri(action){
         dowhat(item);
         break;
         default:
-        console.log("i dont get it.")
-       
+        console.log("i dont get it.")  
     };
+     
 }
-function logIt(action, item){
-    fs.appendFile("log.txt", action +", " + item + ", ",(error)=>{
+function logIt(){
+    fs.appendFile("log.txt", action +", " + item + ", ",function(error){
         if(error){
             console.log("It could not be log becaue " + error)
         }
+    })
+}
+function promptForQuery(query){
+    inquirer
+    .prompt(
+        {
+        type: "input",
+        message: "What "+query+" should I look?",
+        name: "item"
+        }
+    )
+    .then((response)=>{
+        item = response.item;
+        logIt();
+        heyLiri(query)
     })
 }
